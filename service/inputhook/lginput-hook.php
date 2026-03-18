@@ -45,9 +45,9 @@ function handleKey(int $keycode, int $state) {
                 $cmd = $keybinds[$keycode]["command"];
             }
 
-            if ($state == 1) {
-                logmsg("$keycode: execing... {$cmd}");
-                $proc = popen($cmd . " &", "w");
+            if ($state == 1 || $state == 0) {
+                logmsg("$keycode: execing... {$cmd} {$state}");
+                $proc = popen($cmd . " " . $state . " &", "w");
                 if ($proc == null) {
                     logmsg("$keycode: Exec failed :(");
                 } else {
@@ -69,6 +69,13 @@ function handleKey(int $keycode, int $state) {
 if ($hf->hasSymbol("lginput_uinput_send_button")) {
     $hf->newHook("int (*)(uinput_info_t*, int, int)", "lginput_uinput_send_button",
         function($orig, $uinput_info, $keyid, $state) {
+            try {
+                if (\FFI::isNull($uinput_info) || \FFI::isNull($uinput_info->keybinds)) {
+                    return $orig($uinput_info, $keyid, $state);
+                }
+            } catch (\Throwable $e) {
+                return $orig($uinput_info, $keyid, $state);
+            }
             $result = handleKey($uinput_info->keybinds[$keyid]->uinput_code, $state);
 
             if ($result['action'] == 'ignore') {
@@ -104,11 +111,12 @@ if ($hf->hasSymbol("lginput_uinput_send_button")) {
             }
         });
 } else if($hf->hasSymbol("write")) {
-    // Generic write(2) hook
-    $hf->newHook("ssize_t (*)(int, input_event_t*, size_t)", "write", function($orig, $fd, $buf, $size) {
-        $fdp = readlink("/proc/self/fd/$fd");
-        if ($fdp == "/dev/uinput" && $size >= 16 && $buf[0]->type == 1) {
-            var_dump($buf);
+    $uinputFds = [];
+    $hf->newHook("ssize_t (*)(int, input_event_t*, size_t)", "write", function($orig, $fd, $buf, $size) use (&$uinputFds) {
+        if (!isset($uinputFds[$fd])) {
+            $uinputFds[$fd] = (readlink("/proc/self/fd/$fd") === "/dev/uinput");
+        }
+        if ($uinputFds[$fd] && $size >= 16 && $buf[0]->type == 1) {
             $result = handleKey($buf[0]->code, $buf[0]->value);
             if ($result['action'] == 'ignore') {
                 return $size;
@@ -125,7 +133,7 @@ $configLocation = '/home/root/.config/lginputhook/keybinds.json';
 $prevMTime = 0;
 
 while (true) {
-    clearstatcache();
+    clearstatcache(true, $configLocation);
     $mTime = filemtime($configLocation);
 
     if ($mTime != $prevMTime) {
@@ -149,5 +157,5 @@ while (true) {
         }
     }
 
-    sleep(1);
+    sleep(2);
 }
