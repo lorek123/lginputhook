@@ -62,24 +62,27 @@ service.register('autostart', function(message) {
 
 var targetNames = ['RELEASE', 'tvservice', 'micomservice', 'lginput2', 'testapp'];
 
-var targets = fs.readdirSync("/proc").map(function(x) {
+var targets = fs.readdirSync("/proc").reduce(function(acc, x) {
+	if (!/^\d+$/.test(x)) return acc;
 	try {
-		return [x, fs.readFileSync('/proc/' + x + '/comm', {encoding: 'utf8'}).trimRight()];
-	} catch (error) {
-		return null;
-	}
-}).filter(function(x) {
-	return x != null && targetNames.indexOf(x[1]) > -1;
-});
+		var comm = fs.readFileSync('/proc/' + x + '/comm', {encoding: 'utf8'}).trimRight();
+		if (targetNames.indexOf(comm) > -1) acc.push([x, comm]);
+	} catch (error) {}
+	return acc;
+}, []);
 
 var dir = process.cwd() + '/inputhook';
 
 fs.chmodSync(dir + '/ezinject', '777');
 
 if (!fs.existsSync('/tmp/inputhook')) {
-	for (var target of targets) {
-		child_process.exec(dir + '/ezinject ' + target[0] + ' ' + dir + '/libcrypt' + (fs.existsSync('/usr/lib/libcrypt.so.2') ? 2 : 1) + '/libphp.so ' + dir + '/lginput-hook.php ' + target[1] +	' > /tmp/ezinject-' + target[1] + '.log 2>&1');
-	}
+	var libcryptDir = dir + '/libcrypt' + (fs.existsSync('/usr/lib/libcrypt.so.2') ? 2 : 1);
+	(function injectNext(i) {
+		if (i >= targets.length) return;
+		var target = targets[i];
+		child_process.exec(dir + '/ezinject ' + target[0] + ' ' + libcryptDir + '/libphp.so ' + dir + '/lginput-hook.php ' + target[1] + ' > /tmp/ezinject-' + target[1] + '.log 2>&1',
+			function() { injectNext(i + 1); });
+	})(0);
 	fs.writeFileSync('/tmp/inputhook', '');
 }
 

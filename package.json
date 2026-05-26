@@ -20,11 +20,10 @@
   "devDependencies": {
     "@babel/core": "^7.14.3",
     "@babel/preset-env": "^7.14.4",
-    "@webosose/ares-cli": "^2.2.0",
     "add-asset-webpack-plugin": "^2.0.1",
     "babel-loader": "^8.2.2",
-    "copy-webpack-plugin": "^9.0.0",
-    "webpack": "^5.75.0",
-    "webpack-cli": "^4.7.1"
+    "copy-webpack-plugin": "^9.1.0",
+    "webpack": "^5.105.3",
+    "webpack-cli": "^4.10.0"
   }
 }

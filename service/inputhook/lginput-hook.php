@@ -21,11 +21,16 @@ typedef struct {
 $fd = fopen("/tmp/lginput-hook-" . $argv[1] . ".log", "a");
 function logmsg($str) {
     global $fd;
-    fwrite($fd, $str . "\n");
-    echo $str . "\n";
-    // fflush($fd);
+    $line = date('Y-m-d H:i:s') . ' ' . $str . "\n";
+    fwrite($fd, $line);
+    echo $line;
     fsync($fd);
 }
+
+register_shutdown_function(function() {
+    $err = error_get_last();
+    logmsg("EXIT reason=" . ($err ? $err['type'] . ' ' . $err['message'] . ' at ' . $err['file'] . ':' . $err['line'] : 'clean'));
+});
 
 $keybinds = [];
 
@@ -131,6 +136,8 @@ if ($hf->hasSymbol("lginput_uinput_send_button")) {
 $configLocation = '/home/root/.config/lginputhook/keybinds.json';
 
 $prevMTime = 0;
+$loopCount = 0;
+$targetPid = $argv[1];
 
 while (true) {
     clearstatcache(true, $configLocation);
@@ -155,6 +162,19 @@ while (true) {
         } catch (Exception $e) {
             logmsg("Failed to reload keybinds: " . $e->getMessage());
         }
+    }
+
+    $loopCount++;
+
+    // heartbeat every ~30s
+    if ($loopCount % 15 === 0) {
+        logmsg("heartbeat loop=$loopCount");
+    }
+
+    // check the injected process is still alive
+    if (!file_exists("/proc/$targetPid")) {
+        logmsg("TARGET PROCESS $targetPid GONE — hook lost, exiting");
+        exit(1);
     }
 
     sleep(2);

@@ -148,14 +148,23 @@ class HookFactory {
 
 class HookHandle {
 	private Closure $wrapCb;
-	private Closure $hookCb;
 	private CData $nat;
+
+	// Holds strong PHP references to every live trampoline+closure pair so the
+	// GC never sees a zero refcount and frees memory that GumInterceptor still
+	// holds a raw native pointer into.
+	private static array $roots = [];
 
 	public function __construct(HookFactory2 $parent, string $type, CData $pfnOrig, callable $hookCb){
 		$this->wrapCb = Closure::fromCallable(function(...$args) use($pfnOrig, $hookCb){
 			return $hookCb($pfnOrig, ...$args);
 		});
 		$this->nat = $parent->makePfn($type, $this->wrapCb);
+
+		// Root both objects: CData doesn't inform the GC about the closure it
+		// wraps, so without this the closure (and its trampoline) can be
+		// collected while GumInterceptor still redirects native calls into it.
+		self::$roots[] = [$this->nat, $this->wrapCb];
 	}
 
 	public function getNativeHandle(){
