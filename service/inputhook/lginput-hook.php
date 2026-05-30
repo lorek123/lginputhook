@@ -137,7 +137,6 @@ $configLocation = '/home/root/.config/lginputhook/keybinds.json';
 
 $prevMTime = 0;
 $loopCount = 0;
-$targetPid = $argv[1];
 
 while (true) {
     clearstatcache(true, $configLocation);
@@ -169,12 +168,6 @@ while (true) {
     // heartbeat every ~30s
     if ($loopCount % 15 === 0) {
         logmsg("heartbeat loop=$loopCount");
-    }
-
-    // check the injected process is still alive
-    if (!file_exists("/proc/$targetPid")) {
-        logmsg("TARGET PROCESS $targetPid GONE — hook lost, exiting");
-        exit(1);
     }
 
     sleep(2);
