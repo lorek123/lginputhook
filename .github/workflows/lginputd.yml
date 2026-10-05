@@ -1,0 +1,24 @@
+name: lginputd
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build static ARMv7 binary
+        run: lginputd/build.sh
+
+      - name: Check it matches the committed binary
+        run: |
+          git diff --stat -- service/inputhook/lginputd
+          file service/inputhook/lginputd
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lginputd
+          path: service/inputhook/lginputd

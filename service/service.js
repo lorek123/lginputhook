@@ -59,28 +59,18 @@ service.register('autostart', function(message) {
 	}
 });
 
-var targetNames = ['RELEASE', 'lginput2', 'micomservice', 'tvservice', 'testapp'];
-
-var targets = fs.readdirSync("/proc").map(function(x) {
-	try {
-		return [x, fs.readFileSync('/proc/' + x + '/comm', {encoding: 'utf8'}).trimRight()];
-	} catch (error) {
-		return null;
-	}
-}).filter(function(x) {
-	return x != null && targetNames.indexOf(x[1]) > -1;
-});
-
 var dir = process.cwd() + '/inputhook';
 
-fs.chmodSync(dir + '/ezinject', '777');
+fs.chmodSync(dir + '/lginputd', '755');
+fs.chmodSync(dir + '/run-lginputd.sh', '755');
 
+// lginputd takes over the remote's input devices and remaps keys without
+// injecting code into LG processes. Start its supervisor once per boot,
+// detached, so it keeps running when this service is stopped.
 if (!fs.existsSync('/tmp/inputhook')) {
-    for (var target of targets) {
-        fs.writeFileSync('/tmp/lginput-hook-' + target[1] + '.log', '');
-        child_process.exec(dir + '/ezinject ' + '-l ' + '/tmp/lginput-hook-' + target[1] + '.log ' + target[0] + ' ' + dir + '/libinputhookpp.so ' + '> /tmp/ezinject-' + target[1] + '.log 2>&1');
-    }
-    fs.writeFileSync('/tmp/inputhook', '');
+	fs.writeFileSync('/tmp/lginputd.log', '');
+	child_process.spawn('/bin/sh', [dir + '/run-lginputd.sh'], {detached: true, stdio: 'ignore'}).unref();
+	fs.writeFileSync('/tmp/inputhook', '');
 }
 
 var types = {

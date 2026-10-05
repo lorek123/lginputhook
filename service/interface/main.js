@@ -215,12 +215,6 @@ document.getElementById('reboot').onclick = function() {
 	location.reload();
 }
 
-var log = 'lginput2';
-
-document.getElementById('log').onchange = function() {
-	log = this.value;
-}
-
 var ip = getSync('/ip/').responseText;
 
 if (ip == '') location.reload();
@@ -230,14 +224,8 @@ var password = getSync('/password/').responseText;
 document.getElementById('url').innerHTML = 'To view this page on another device, go to <a href="#">http://' + (ip == '0.0.0.0' ? '<tv_ip>' : ip) + ':1842/</a> in the web browser.<br>Username can be empty. ' + (password == '' ? '<br>Launch the app to view the password.' : '<br>Password is: ' + password) ;
 
 setInterval(async function() {
-	document.getElementById('inputhook-label').innerText = 'lginput-hook-' + log + '.log';
-	document.getElementById('ezinject-label').innerText = 'ezinject-' + log + '.log';
-	var log1 = document.getElementById('inputhook-log');
-	var log3 = document.getElementById('ezinject-log');
-	var scrolled1 = log1.scrollHeight - log1.clientHeight <= log1.scrollTop + 1;
-	var scrolled3 = log3.scrollHeight - log3.clientHeight <= log3.scrollTop + 1;
-	log1.innerText = await (await get('/logs/lginput-hook-' + log + '.log')).text();
-	log3.innerText = await (await get('/logs/ezinject-' + log + '.log')).text();
-	if (scrolled1) log1.scrollTop = log1.scrollHeight - log1.clientHeight;
-	if (scrolled3) log3.scrollTop = log3.scrollHeight - log3.clientHeight;
+	var log = document.getElementById('lginputd-log');
+	var scrolled = log.scrollHeight - log.clientHeight <= log.scrollTop + 1;
+	log.innerText = await (await get('/logs/lginputd.log')).text();
+	if (scrolled) log.scrollTop = log.scrollHeight - log.clientHeight;
 }, 1000);
